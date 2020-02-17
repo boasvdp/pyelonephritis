@@ -13,7 +13,6 @@ metagenomics
 mlst
 prokka_out
 quast_out
-README.md
 shovill_out
 slurm-*.out
 snakemake.job
@@ -22,4 +21,5 @@ snippy_out
 snippy_strict_out
 snippy_test
 summary.tsv
+todo.txt
 .snakemake
