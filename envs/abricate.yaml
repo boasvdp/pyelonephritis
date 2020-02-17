@@ -1,0 +1,4 @@
+channels:
+- bioconda
+dependencies:
+- abricate=0.9.3

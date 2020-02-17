@@ -1,0 +1,4 @@
+channels:
+- bioconda
+dependencies:
+- mlst=2.17.6

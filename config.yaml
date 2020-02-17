@@ -1,0 +1,26 @@
+fastp:
+ compression_level: "9"
+ general: "--disable_length_filtering"
+
+kraken:
+ general: "--output - --fastq-input --gzip-compressed --paired"
+ db: "/home/vdputten/kraken_db_nohuman"
+
+shovill:
+ minlen: "500"
+ ram: "64"
+ depth: "100"
+ assembler: "spades"
+ tmpdir: "$TMPDIR"
+
+abricate:
+ minid: "90"
+ mincov: "60"
+ vfdb: "vfdb"
+
+prokka:
+ kingdom: "Bacteria"
+ 
+snippy:
+ general: "--force --unmapped"
+ strict: "--force --unmapped --bwaopt '-B 999 -O 999'"
