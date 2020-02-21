@@ -10,7 +10,6 @@ rule all:
 		expand("mlst/{sample}.tsv", sample = IDS),
 		expand("prokka_out/{sample}", sample = IDS),
                 expand("kraken_unmapped_out/{sample}_kraken2_report.txt", sample = IDS),
-		expand("kraken_unmapped_strict_out/{sample}_kraken2_report.txt", sample = IDS),
 		"coverage.tsv",
 		"summary.tsv"
 
@@ -164,8 +163,7 @@ rule prokka:
 
 rule snippy:
 	input:
-		fw = "metagenomics/{sample}_R1.fastq.gz",
-		rv = "metagenomics/{sample}_R2.fastq.gz",
+		reads = "metagenomics/{sample}_clean.fq.gz",
 		ref = "genomes/{sample}.fasta"
 	output:
 		directory("snippy_out/{sample}")
@@ -178,26 +176,7 @@ rule snippy:
 	threads: 8
 	shell:
 		"""
-		snippy {params.general} --cpus {threads} --outdir {output} --ref {input.ref} --pe1 {input.fw} --pe2 {input.rv} 2>{log}
-		"""
-
-rule snippy_strict:
-	input:
-		fw = "metagenomics/{sample}_R1.fastq.gz",
-		rv = "metagenomics/{sample}_R2.fastq.gz",
-		ref = "genomes/{sample}.fasta"
-	output:
-		directory("snippy_strict_out/{sample}")
-	conda:
-		"envs/snippy.yaml"
-	params:
-		strict = config["snippy"]["strict"]
-	log:
-		"logs/snippy/{sample}.log"
-	threads: 8
-	shell:
-		"""
-		snippy {params.strict} --cpus {threads} --outdir {output} --ref {input.ref} --pe1 {input.fw} --pe2 {input.rv} 2>{log}
+		snippy {params.general} --cpus {threads} --outdir {output} --ref {input.ref} --peil {input.reads} 2>{log}
 		"""
 
 rule kraken2_unmapped:
@@ -212,24 +191,6 @@ rule kraken2_unmapped:
 		db = config["kraken"]["db"]
 	log:
 		"logs/kraken2_unmapped/{sample}.log"
-	threads: 8
-	shell:
-		"""
-		kraken2 --db {params.db} {params.general} --threads {threads} --report {output.report} {input.snippy}/snps.unmapped_R1.fq.gz {input.snippy}/snps.unmapped_R2.fq.gz 2>&1>{log}
-		"""
-
-rule kraken2_unmapped_strict:
-	input:
-		snippy = "snippy_strict_out/{sample}"
-	output:
-		report = "kraken_unmapped_strict_out/{sample}_kraken2_report.txt"
-	conda:
-		"envs/kraken.yaml"
-	params:
-		general = config["kraken"]["general"],
-		db = config["kraken"]["db"]
-	log:
-		"logs/kraken2_unmapped_strict/{sample}.log"
 	threads: 8
 	shell:
 		"""
