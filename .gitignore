@@ -20,6 +20,7 @@ snippy.job
 snippy_out
 snippy_strict_out
 snippy_test
+stats.json
 summary.tsv
 todo.txt
 .snakemake
