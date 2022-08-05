@@ -1,11 +1,10 @@
 abricate_out
 amrfinder_out
-bamcov_out
-coverage.tsv
-fastp_out
+bamcov*out
+coverage*.tsv
 genomes
 isolates
-kraken_out
+kraken*out
 kraken_unmapped_out
 kraken_unmapped_strict_out
 logs
@@ -17,10 +16,9 @@ shovill_out
 slurm-*.out
 snakemake.job
 snippy.job
-snippy_out
-snippy_strict_out
-snippy_test
+snippy_*
 stats.json
 summary.tsv
 todo.txt
 .snakemake
+minikraken2_v2_8GB_201904_UPDATE

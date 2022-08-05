@@ -3,8 +3,8 @@ fastp:
  general: "--disable_length_filtering"
 
 kraken:
- general: "--output - --fastq-input --gzip-compressed --paired"
- db: "/home/vdputten/kraken_db_nohuman"
+ general: "--fastq-input --gzip-compressed --paired"
+ db: "minikraken2_v2_8GB_201904_UPDATE"
 
 shovill:
  minlen: "500"

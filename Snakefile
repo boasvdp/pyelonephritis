@@ -11,47 +11,49 @@ rule all:
 		expand("prokka_out/{sample}", sample = IDS),
                 expand("kraken_unmapped_out/{sample}_kraken2_report.txt", sample = IDS),
 		"coverage.tsv",
+		"coverage_specific.tsv",
 		"summary.tsv"
 
-rule fastp:
+rule trimmomatic_pe:
 	input:
-		fw = "isolates/raw_reads/{sample}_R1.fastq.gz",
-		rv = "isolates/raw_reads/{sample}_R2.fastq.gz"
+		r1 = "isolates/raw_reads/{sample}_R1.fastq.gz",
+		r2 = "isolates/raw_reads/{sample}_R2.fastq.gz"
 	output:
-		fw = "isolates/trimmed_reads/{sample}_R1.fastq.gz",
-		rv = "isolates/trimmed_reads/{sample}_R2.fastq.gz",
-		html = "fastp_out/html/{sample}_fastp.html",
-		json = "fastp_out/json/{sample}_fastp.json"
-	conda:
-		"envs/fastp.yaml"
-	params:
-		compression_level = config["fastp"]["compression_level"],
-		general = config["fastp"]["general"]
+		r1 = "isolates/trimmed_reads/{sample}_R1.fastq.gz",
+		r2 = "isolates/trimmed_reads/{sample}_R2.fastq.gz",
+		r1_unpaired = temp("tmp_data/trimmed/{sample}.1.unpaired.fastq.gz"),
+		r2_unpaired = temp("tmp_data/trimmed/{sample}.2.unpaired.fastq.gz"),
 	log:
-		"logs/fastp/{sample}.log"
-	threads: 8
-	shell:
-		"""
-		fastp -w {threads} -z {params.compression_level} -i {input.fw} -o {output.fw} -I {input.rv} -O {output.rv} {params.general} --html {output.html} --json {output.json} 2>&1>{log}
-		"""
+		"logs/trimmomatic/{sample}.log"
+	params:
+		# list of trimmers (see manual)
+		trimmer=["ILLUMINACLIP:all_paired.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:36"],
+		# optional parameters
+		extra="",
+		compression_level="-9"
+	threads:
+		15
+	wrapper:
+		"0.78.0/bio/trimmomatic/pe"
 
-rule kraken2:
+rule kraken2_isolate:
 	input:
 		fw = "isolates/trimmed_reads/{sample}_R1.fastq.gz",
 		rv = "isolates/trimmed_reads/{sample}_R2.fastq.gz"
 	output:
-		report = "kraken_out/{sample}_kraken2_report.txt"
+		report = "kraken_out/{sample}_kraken2_report.txt",
+		output = "kraken_out/{sample}_kraken2_output.txt",
 	conda:
 		"envs/kraken.yaml"
 	params:
 		general = config["kraken"]["general"],
 		db = config["kraken"]["db"]
 	log:
-		"logs/kraken2/{sample}.log"
+		"logs/kraken2_isolate/{sample}.log"
 	threads: 8
 	shell:
 		"""
-		kraken2 --db {params.db} {params.general} --threads {threads} --report {output.report} {input.fw} {input.rv} 2>&1>{log}
+		kraken2 --db {params.db} {params.general} --threads {threads} --output {output.output} --report {output.report} {input.fw} {input.rv} 2>&1>{log}
 		"""
 
 rule shovill:
@@ -161,7 +163,45 @@ rule prokka:
 		if [ -f {output}/*.gff ]; then echo "{output} exists"; else exit 1; fi
 		"""
 
-rule snippy:
+rule kraken2_metagenome:
+	input:
+		"metagenomics/{sample}_clean.fq.gz"
+	output:
+		report = "kraken_metagenome_out/{sample}_kraken2_report.txt",
+		output = "kraken_metagenome_out/{sample}_kraken2_output.txt",
+	conda:
+		"envs/kraken.yaml"
+	params:
+		general = config["kraken"]["general"],
+		db = config["kraken"]["db"]
+	log:
+		"logs/kraken2_metagenome/{sample}.log"
+	threads: 15
+	shell:
+		"""
+		kraken2 --db {params.db} {params.general} --threads {threads} --output {output.output} --report {output.report} {input} 2>&1>{log}
+		"""
+
+rule kraken_extract_reads:
+	input:
+		kraken_output = "kraken_metagenome_out/{sample}_kraken2_output.txt",
+		kraken_report = "kraken_metagenome_out/{sample}_kraken2_report.txt",
+		reads = "metagenomics/{sample}_clean.fq.gz",
+	output:
+		"kraken_extracted_reads/{sample}.fq.gz"
+	conda:
+		"envs/kraken.yaml"
+	params:
+		taxid = "562"
+	log:
+		"logs/kraken_extract_reads/{sample}.log"
+	threads: 15
+	shell:
+		"""
+		extract_kraken_reads.py --kraken {input.kraken_output} -s {input.reads} -o {output} -t {params.taxid} -r {input.kraken_report} --include-children
+		"""
+
+rule snippy_whole:
 	input:
 		reads = "metagenomics/{sample}_clean.fq.gz",
 		ref = "genomes/{sample}.fasta"
@@ -173,6 +213,24 @@ rule snippy:
 		general = config["snippy"]["general"]
 	log:
 		"logs/snippy/{sample}.log"
+	threads: 8
+	shell:
+		"""
+		snippy {params.general} --cpus {threads} --outdir {output} --ref {input.ref} --peil {input.reads} 2>{log}
+		"""
+
+rule snippy_specific:
+	input:
+		reads = "kraken_extracted_reads/{sample}.fq.gz",
+		ref = "genomes/{sample}.fasta"
+	output:
+		directory("snippy_specific_out/{sample}")
+	conda:
+		"envs/snippy.yaml"
+	params:
+		general = config["snippy"]["general"]
+	log:
+		"logs/snippy_specific/{sample}.log"
 	threads: 8
 	shell:
 		"""
@@ -209,6 +267,18 @@ rule bamcov:
 		bamcov {input}/snps.bam > {output} 2>{log}
 		"""
 
+rule bamcov_specific:
+	input:
+		"snippy_specific_out/{sample}"
+	output:
+		"bamcov_specific_out/{sample}.tsv"
+	log:
+		"logs/bamcov_specific/{sample}.log"
+	shell:
+		"""
+		bamcov {input}/snps.bam > {output} 2>{log}
+		"""
+
 rule print_coverage:
 	input:
 		expand("bamcov_out/{sample}.tsv", sample=IDS)
@@ -221,9 +291,22 @@ rule print_coverage:
 		bash scripts/print_coverage.sh {input} > {output} 2>{log}
 		"""
 
+rule print_coverage_specific:
+	input:
+		expand("bamcov_specific_out/{sample}.tsv", sample=IDS)
+	output:
+		"coverage_specific.tsv"
+	log:
+		"logs/print_coverage_specific.log"
+	shell:
+		"""
+		bash scripts/print_coverage.sh {input} > {output} 2>{log}
+		"""
+
 rule summary:
 	input:
 		"coverage.tsv",
+		"coverage_specific.tsv",
 		expand("mlst/{sample}.tsv", sample = IDS),
 		expand("quast_out/{sample}", sample = IDS),
 		expand("kraken_out/{sample}_kraken2_report.txt", sample = IDS)
