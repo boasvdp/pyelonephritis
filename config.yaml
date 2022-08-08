@@ -24,3 +24,8 @@ prokka:
 snippy:
  general: "--force --unmapped"
  strict: "--force --unmapped --bwaopt '-B 999 -O 999'"
+
+organism:
+ A: "Escherichia coli"
+ B: "Klebsiella pneumoniae"
+ C: "Unknown"

@@ -1,6 +1,9 @@
 IDS, = glob_wildcards("isolates/raw_reads/{id}_R1.fastq.gz")
 configfile: "config.yaml"
 
+def give_organism(wildcards):
+  return config["organism"][wildcards.sample]
+
 rule all:
 	input:
 		expand("kraken_out/{sample}_kraken2_report.txt", sample = IDS),
@@ -192,7 +195,7 @@ rule kraken_extract_reads:
 	conda:
 		"envs/kraken.yaml"
 	params:
-		taxid = "562"
+		taxid = give_organism
 	log:
 		"logs/kraken_extract_reads/{sample}.log"
 	threads: 15
